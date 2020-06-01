@@ -24,7 +24,9 @@ The first step is calibrate the camera. The images for camera calibration are st
 The camera matrix and distortion coefficients are stored in a binary file. 
 Here is the result:
 
-![Before Calibration](camera_cal/calibration1.jpg "Original") ![After Calibration](camera_cal/test_undist.jpg "Undistorted")
+Before Calibration | After Calibration
+-|-
+![Before Calibration](camera_cal/calibration1.jpg "Original") | ![After Calibration](camera_cal/test_undist.jpg "Undistorted")
 
 More info in the function camera_data.perform_calibration()
 
@@ -40,13 +42,18 @@ The result is shown below:
 ![Edge detection](output_images/thresholds.jpg "Edgde detection")
 
 The next step is to get Bird-View. The ROI points are decided setting up a focal point, an Y-offset and 2 base-points(heer I used the bottom points). The warped image:
-![ROI Points](output_images/roi_shown.jpg "ROI Points") ![Bird-View](output_images/warped.jpg "Bird-View")
+
+ROI Points|Bird-View
+-|-
+![ROI Points](output_images/roi_shown.jpg "ROI Points") | ![Bird-View](output_images/warped.jpg "Bird-View")
 
 
 Now the function lane_detection() is called to find where are the lanes. Nested in this function, is the function find_lane_pixels(), that is called at first-time run or when the search_around_poly() fails to find the lanes with the previous results.
 The histogram is used to split the image and start to search the lane around rectangles boxes:
 
-![Rectangles](output_images/draw_rectangle.jpg "Rectangles area") ![polynomial fit](output_images/plot_fit.jpg "polynomial fit")
+Rectangle Area|Polynomial Fit
+-|-
+![Rectangles](output_images/draw_rectangle.jpg "Rectangles area") | ![polynomial fit](output_images/plot_fit.jpg "Polynomial Fit")
 
 With these result, it is possible to get information like curve radius and the car position related to center of the lane. The function measure_curvature_real() calculates the average between the right and the left lane. As the camera is mounted in the car center, we can calculate the difference between the average of the two lanes found and the image center. The final result is shown below:
 
