@@ -7,23 +7,21 @@ def hls_select_threshold(img, thresh=(0, 255)):
     # 1) Convert to HLS color space
     hls_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
     # 2) Apply a threshold to the S channel
-    
+
     b_channel = img[:,:,0]
     g_channel = img[:,:,1]
     s_channel = hls_img[:,:,2]
     binary_b = np.zeros_like(b_channel)
     binary_g = np.zeros_like(g_channel)
-    
 
     binary_b[(b_channel > thresh[0]) & (b_channel <= thresh[1])] = 1
     binary_g[(g_channel > thresh[0]) & (g_channel <= thresh[1])] = 1
-    
 
     binary_output = np.zeros_like(s_channel)
-    
+
     binary_output[(s_channel > thresh[0]) & (s_channel <= thresh[1])] = 1
     binary_output = np.bitwise_or(binary_output, binary_b, binary_g)
-    
+
     out_img = np.dstack((binary_output, binary_output, binary_output)) * 255
     blur_img = blur(out_img, ksize=3)
 
@@ -49,8 +47,8 @@ def mag_thresh(image, sobel_kernel=3, thresh=(0, 255)):
     grad_dir = np.arctan2(abs_sobely,abs_sobelx)
 
     # 4) Scale to 8-bit (0 - 255) and convert to type = np.uint8
-    scale_factor = np.max(grad_dir)/255 
-    grad_dir = (grad_dir/scale_factor).astype(np.uint8) 
+    scale_factor = np.max(grad_dir)/255
+    grad_dir = (grad_dir/scale_factor).astype(np.uint8)
 
     sbinary = np.zeros_like(grad_dir)
     sbinary[(grad_dir >= thresh[0]) & (grad_dir <= thresh[1])] = 1

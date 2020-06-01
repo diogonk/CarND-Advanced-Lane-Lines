@@ -13,15 +13,15 @@ def printDebug(msg):
   print(info.function, info.lineno,": ",msg)
 
 class Line():
-    def __init__(self, base_points, roi_y_offset=0, focal_point=None, 
-        source_pts=None, lane_width=3.7, lane_length=24, filter_size=24):
+    def __init__(self, base_points, roi_y_offset=0, focal_point=None,
+        source_pts=None, lane_width=3.7, lane_length=28, filter_size=24):
 
         # was the line detected in the last iteration?
         self.left_detected = False
         self.right_detected = False
         #average x values of the fitted line over the last n iterations
-        self.bestx_left = None     
-        self.bestx_right = None     
+        self.bestx_left = None
+        self.bestx_right = None
         #polynomial coefficients averaged over the last n iterations
         self.left_fit = None
         self.right_fit = None
@@ -34,8 +34,8 @@ class Line():
         self.filter_size = filter_size
         self.left_fit_filter = deque(maxlen=filter_size)
         self.right_fit_filter = deque(maxlen=filter_size)
-        #radius of curvature of the line in meters
         self.radius_of_curvature = deque(maxlen=filter_size)
+        self.car_position = deque(maxlen=filter_size)
 
         if focal_point is None:
             self.focal_point = [base_points[1]//2,base_points[0]//2]
@@ -70,7 +70,6 @@ class Line():
         # defines a lanes region of interest
 
         if focal_point is None:
-            print('focal point')
             focal_point = self.focal_point
 
         if roi_y_offset is None:
@@ -83,7 +82,6 @@ class Line():
         h_top = roi_y_offset + focal_point[1]
 
         #Get the line equation, then calculate a x to a given y
-
         m_left = (focal_point[1] - source_pts[0][1]) / (focal_point[0] - source_pts[0][0])
         b_left = focal_point[1] - (m_left * focal_point[0])
         x_left = (h_top - b_left) // m_left
@@ -97,7 +95,7 @@ class Line():
 
     # returns : the warped perspective image with the supplied points
     def warp_image(self, img, roi_pts=None, location_pts=None, padding=(0,0)):
-        
+
         if roi_pts is None:
             roi_pts = self.roi_pts
 
@@ -116,7 +114,6 @@ class Line():
         # Convert to HSV color space and separate the V channel
         # hls for Sobel edge detection
         hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
-
         b_channel = image[:,:,0]
         g_channel = image[:,:,1]
         r_channel = image[:,:,2]
@@ -154,10 +151,9 @@ class Line():
         else:
             self.search_around_poly(img, draw_poly=draw_poly)
 
-        return self.left_fit, self.right_fit
+        return
 
     def update_fit_coef(self, image):
-            ### TO-DO: Calc both polynomials using ploty, left_fit and right_fit ###
         self.ploty = np.linspace(0, image.shape[0]-1, image.shape[0])
         try:
             self.bestx_left = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
@@ -172,7 +168,8 @@ class Line():
         # Take a histogram of the bottom half of the image
         histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
         # Create an output image to draw on and visualize the result
-        out_img = binary_warped.copy()
+        #out_img = np.zeros_like(binary_warped).astype(np.uint8)
+        out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
 
         # Find the peak of the left and right halves of the histogram
         # These will be the starting point for the left and right lines
@@ -184,7 +181,7 @@ class Line():
         # Choose the number of sliding windows
         nwindows = 9
         # Set the width of the windows +/- margin
-        margin = 100
+        margin = 130
         # Set minimum number of pixels found to recenter window
         minpix = 50
 
@@ -211,29 +208,32 @@ class Line():
             win_xleft_high = leftx_current + margin
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
-            
+
             # Draw the windows on the visualization image
             if draw_rectangle:
                 cv2.rectangle(out_img,(win_xleft_low,win_y_low),
-                (win_xleft_high,win_y_high),(0,255,0), 2) 
+                (win_xleft_high,win_y_high),(0,255,0), 2)
                 cv2.rectangle(out_img,(win_xright_low,win_y_low),
-                (win_xright_high,win_y_high),(0,255,0), 2) 
-            
+                (win_xright_high,win_y_high),(0,255,0), 2)
+
             # Identify the nonzero pixels in x and y within the window #
-            good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
+            good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
             (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
-            good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
+            good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
             (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-            
+
             # Append these indices to the lists
             left_lane_inds.append(good_left_inds)
             right_lane_inds.append(good_right_inds)
-            
+
             # If you found > minpix pixels, recenter next window on their mean position
             if len(good_left_inds) > minpix:
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
-            if len(good_right_inds) > minpix:        
+            if len(good_right_inds) > minpix:
                 rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
+
+        if draw_rectangle:
+            cv2.imshow('rectangles search', out_img)
 
         # Concatenate the arrays of indices (previously was a list of lists of pixels)
         try:
@@ -242,10 +242,10 @@ class Line():
         except ValueError:
             # Avoids an error if the above is not implemented fully
             pass
-        
+
         # Extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
+        lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
@@ -276,7 +276,7 @@ class Line():
 
 
 
-    def search_around_poly(self, binary_warped, margin=100, draw_poly=False):
+    def search_around_poly(self, binary_warped, margin=130, draw_poly=False):
         # Choose the width of the margin around the previous polynomial to search
         # The quiz grader expects 100 here, but feel free to tune on your own!
 
@@ -284,24 +284,24 @@ class Line():
         nonzero = binary_warped.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-        
+
         ###Set the area of search based on activated x-values ###
         left_lane_inds = (
-            (nonzerox > (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + self.left_fit[2] - margin)) & 
+            (nonzerox > (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + self.left_fit[2] - margin)) &
             (nonzerox < (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + self.left_fit[2] + margin)) )
 
         right_lane_inds = (
-            (nonzerox > (self.right_fit[0]*(nonzeroy**2) + self.right_fit[1]*nonzeroy + self.right_fit[2] - margin)) & 
+            (nonzerox > (self.right_fit[0]*(nonzeroy**2) + self.right_fit[1]*nonzeroy + self.right_fit[2] - margin)) &
             (nonzerox < (self.right_fit[0]*(nonzeroy**2) + self.right_fit[1]*nonzeroy + self.right_fit[2] + margin)) )
-        
+
         # Again, extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
+        lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
         # Fit new polynomials
-        
+
         self.left_detected = True
         self.right_detected = True
 
@@ -327,9 +327,9 @@ class Line():
 
         self.left_fit = self.moving_average(self.left_fit_filter, self.left_fit)
         self.right_fit = self.moving_average(self.right_fit_filter, self.right_fit)
-        
+
         self.update_fit_coef(binary_warped)
-        
+
         # Draw the lane onto the warped blank image
         if draw_poly==True:
             self.plot_fit(binary_warped, nonzerox, nonzeroy, left_lane_inds, right_lane_inds)
@@ -348,12 +348,12 @@ class Line():
         out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
 
         left_line_window1 = np.array([np.transpose(np.vstack([self.bestx_left-margin, self.ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.bestx_left+margin, 
+        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.bestx_left+margin,
                                 self.ploty])))])
         left_line_pts = np.hstack((left_line_window1, left_line_window2))
-    
+
         right_line_window1 = np.array([np.transpose(np.vstack([self.bestx_right-margin, self.ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.bestx_right+margin, 
+        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.bestx_right+margin,
                                 self.ploty])))])
         right_line_pts = np.hstack((right_line_window1, right_line_window2))
 
@@ -368,7 +368,8 @@ class Line():
         result[np.int32(self.ploty),np.int32(self.bestx_left)] = [0,255,255]
         result[np.int32(self.ploty),np.int32(self.bestx_right)] = [0,255,255]
 
-        cv2.imshow("find_lanes", result)
+        cv2.imshow("plot_fit", result)
+        cv2.imwrite('output_images/plot_fit.jpg', result)
         return
 
     def draw_lane(self, img, color=(50,255,50), overlay_weight=0.3):
@@ -386,7 +387,7 @@ class Line():
         # Warp the blank back to original image space using inverse perspective matrix (Minv)
         newwarp = cv2.warpPerspective(color_warp, self.M, (img.shape[1], img.shape[0]), flags=cv2.WARP_INVERSE_MAP)
 
-        # Combine the result with the original image        
+        # Combine the result with the original image
         return cv2.addWeighted(img, 1, newwarp, 0.3, 0)
 
     def moving_average(self, filter_q, data):
@@ -409,20 +410,20 @@ class Line():
         Calculates the curvature of polynomial functions in meters.
         '''
         # Define conversions in x and y from pixels space to meters
-        #self.ym_per_pix = 30/720 # meters per pixel in y dimension
-        #self.xm_per_pix = 3.7/700 # meters per pixel in x dimension
-        
-        # Start by generating our fake example data
-        # Make sure to feed in your real data instead in your project!
 
-        
         # Define y-value where we want radius of curvature
         # We'll choose the maximum y-value, corresponding to the bottom of the image
-        #y_eval = np.max(self.ploty)
+
         # Calculation of R_curve (radius of curvature)
         cent_fit = (self.left_fit + self.right_fit) / 2
         rad = ((1 + (2 * cent_fit[0] * y_eval * self.ym_per_pix + cent_fit[1]) ** 2) ** 1.5) / np.absolute(2 * cent_fit[0])
-
         rad = self.moving_average(self.radius_of_curvature, rad)
 
-        return rad/2
+        #As the camera is mounted in the center of the car
+        #it's posssible to calculate the car position with the diference between
+        # the first point of center(average left-right) and the image center
+
+        car_position = cent_fit[-1] - self.w // 2
+        car_position = self.moving_average(self.car_position, car_position)
+
+        return rad/2, car_position * self.xm_per_pix
