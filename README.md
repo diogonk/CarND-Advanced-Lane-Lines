@@ -53,5 +53,5 @@ With these result, it is possible to get information like curve radius and the c
 ![final-result](output_images/final_result.jpg "Final Result Lane Detection")
 
 
-Improvements:
+### Improvements:
 The pipeline does not work well with shadows. The threshold or other algorithms can be used to perform more robust lane detection.
